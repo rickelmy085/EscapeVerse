@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>EscapeVerse :: Missão Foguete — Sesiverso</title>
+<style>
+  :root{
+    --void:#0b0c10;
+    --panel:#12161c;
+    --panel-2:#1f2833;
+    --line:#2a3540;
+    --cyan:#66fcf1;
+    --cyan-dim:#45a29e;
+    --ok:#5cb85c;
+    --danger:#d9534f;
+    --text:#c5c6c7;
+    --text-dim:#7f8a93;
+    --mono: 'Consolas', 'SFMono-Regular', 'Courier New', monospace;
+    --disp: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{
+    height:100%; width:100%; overflow:hidden;
+    background:var(--void); color:var(--text); font-family:var(--disp);
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important;}
+  }
+
+  button{font-family:inherit; cursor:pointer;}
+  button:focus-visible, .option:focus-visible{
+    outline:2px solid var(--cyan); outline-offset:3px;
+  }
+
+  /* ---------- Background atmosphere ---------- */
+  .bg-grid{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-image:
+      linear-gradient(rgba(102,252,241,0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(102,252,241,0.045) 1px, transparent 1px);
+    background-size:38px 38px;
+    -webkit-mask-image: radial-gradient(ellipse at center, black 10%, transparent 78%);
+    mask-image: radial-gradient(ellipse at center, black 10%, transparent 78%);
+  }
+  .bg-scan{
+    position:fixed; inset:0; z-index:1; pointer-events:none;
+    background:repeating-linear-gradient(0deg, rgba(0,0,0,0) 0, rgba(0,0,0,0) 2px, rgba(0,0,0,0.12) 3px, rgba(0,0,0,0) 4px);
+    opacity:0.5;
+  }
+  .bg-glow{
+    position:fixed; z-index:0; pointer-events:none;
+    width:70vmax; height:70vmax; left:50%; top:50%; transform:translate(-50%,-50%);
+    background:radial-gradient(circle, rgba(102,252,241,0.07) 0%, transparent 60%);
+  }
+
+  /* ---------- App shell ---------- */
+  .app{
+    position:relative; z-index:2; height:100vh; width:100vw;
+    display:flex; align-items:center; justify-content:center;
+    padding:clamp(10px, 2.5vh, 28px) clamp(10px, 3vw, 30px);
+  }
+
+  .console{
+    width:min(920px, 100%); max-height:96vh;
+    background:linear-gradient(180deg, var(--panel) 0%, #0e1116 100%);
+    border:1px solid var(--line); border-radius:14px;
+    box-shadow:0 0 0 1px rgba(102,252,241,0.05), 0 30px 80px rgba(0,0,0,0.6), 0 0 60px rgba(102,252,241,0.04) inset;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+
+  .titlebar{
+    display:flex; align-items:center; gap:10px; padding:12px 18px;
+    background:var(--panel-2); border-bottom:1px solid var(--line); flex-shrink:0;
+  }
+  .titlebar .label{
+    margin-left:8px; font-size:11px; letter-spacing:2px; color:var(--text-dim); text-transform:uppercase;
+  }
+  .titlebar .status{
+    margin-left:auto; font-size:11px; color:var(--text-dim); letter-spacing:1px;
+    display:flex; align-items:center; gap:6px;
+  }
+  .titlebar .status .pulse{
+    width:7px; height:7px; border-radius:50%; background:var(--cyan);
+    animation:blink 1.4s ease-in-out infinite;
+  }
+  @keyframes blink{0%,100%{opacity:0.3;} 50%{opacity:1;}}
+
+  .stage-track{
+    display:flex; gap:6px; padding:10px 18px; background:#0d1015; flex-shrink:0;
+    border-bottom:1px solid var(--line);
+  }
+  .stage-seg{ flex:1; height:4px; border-radius:2px; background:var(--line); position:relative; overflow:hidden;}
+  .stage-seg.done{background:var(--cyan);}
+  .stage-seg.current::after{
+    content:''; position:absolute; inset:0; background:var(--cyan); opacity:0.4;
+    animation:pulse-seg 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse-seg{0%,100%{opacity:0.15;} 50%{opacity:0.55;}}
+
+  .stage-content{
+    flex:1; padding:clamp(18px, 3.5vh, 40px) clamp(18px, 4vw, 46px);
+    overflow-y:auto; display:flex; flex-direction:column; justify-content:center; min-height:0;
+  }
+
+  .screen{display:none; animation:fade-in 0.5s ease;}
+  .screen.active{display:flex; flex-direction:column; gap:16px;}
+  @keyframes fade-in{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+
+  .eyebrow{
+    font-size:11px; letter-spacing:3px; color:var(--text-dim); text-transform:uppercase;
+    display:flex; align-items:center; gap:8px;
+  }
+  .eyebrow::before{content:'▸'; color:var(--cyan-dim);}
+
+  h1.hero-title{
+    font-size:clamp(28px, 5vw, 44px); font-weight:800; letter-spacing:-0.5px; line-height:1.1; color:#eef7f6;
+  }
+  h1.hero-title .accent{color:#eef7f6; box-shadow:inset 0 -3px 0 var(--cyan-dim); padding-bottom:2px;}
+
+  h2.stage-title{
+    font-size:clamp(20px, 3.4vw, 27px); font-weight:700; color:#eef7f6; letter-spacing:-0.2px; line-height:1.25;
+  }
+
+  p.lede{
+    font-size:clamp(13.5px, 1.9vw, 16px); line-height:1.6; color:var(--text); max-width:64ch;
+  }
+  p.lede strong{color:#eef7f6; font-weight:700;}
+
+  .btn{
+    border:1px solid var(--cyan-dim); background:transparent; color:var(--cyan);
+    padding:13px 26px; font-size:12.5px; letter-spacing:2px; text-transform:uppercase;
+    border-radius:6px; font-weight:700;
+    transition:background 0.15s, box-shadow 0.15s, transform 0.1s, color 0.15s;
+    width:fit-content;
+  }
+  .btn:hover{background:rgba(102,252,241,0.1); box-shadow:0 0 20px rgba(102,252,241,0.25);}
+  .btn:active{transform:scale(0.98);}
+  .btn.primary{background:var(--cyan); color:#04191a; border-color:var(--cyan);}
+  .btn.primary:hover{box-shadow:0 0 26px rgba(102,252,241,0.5);}
+  .btn.ghost{border-color:var(--line); color:var(--text-dim); padding:9px 16px; font-size:11px;}
+  .btn.ghost:hover{border-color:var(--cyan-dim); color:var(--cyan-dim); box-shadow:none; background:transparent;}
+
+  .row{display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:6px;}
+
+  /* ---------- Options (all 3 phases use this) ---------- */
+  .options{display:flex; flex-direction:column; gap:10px; margin-top:4px;}
+  .option{
+    display:flex; align-items:center; gap:14px; text-align:left;
+    background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+    padding:14px 16px; border-radius:8px; font-size:14px;
+    transition:border-color 0.15s, background 0.15s;
+  }
+  .option:hover{border-color:var(--cyan-dim); background:#233040;}
+  .option .tag{
+    flex-shrink:0; width:26px; height:26px; border-radius:6px;
+    display:flex; align-items:center; justify-content:center;
+    border:1px solid var(--line); color:var(--text-dim); font-size:12px; font-weight:700;
+  }
+  .option .opt-text{font-family:var(--mono); font-size:13px; word-break:break-word;}
+  .option.correct{border-color:var(--ok); background:rgba(92,184,92,0.12); color:#dff5df;}
+  .option.correct .tag{border-color:var(--ok); color:var(--ok);}
+  .option.wrong{border-color:var(--danger); background:rgba(217,83,79,0.12); color:#ffe4e2;}
+  .option.wrong .tag{border-color:var(--danger); color:var(--danger);}
+  .option[disabled]{pointer-events:none; opacity:0.55;}
+
+  .hint-box{
+    font-size:12.5px; color:var(--text-dim); border-left:2px solid var(--cyan-dim);
+    padding:8px 12px; background:rgba(102,252,241,0.05); border-radius:0 6px 6px 0; display:none;
+  }
+  .hint-box.show{display:block; animation:fade-in 0.3s ease;}
+
+  .feedback{ font-size:12.5px; padding:9px 13px; border-radius:6px; display:none; letter-spacing:0.3px;}
+  .feedback.show{display:block; animation:fade-in 0.3s ease;}
+  .feedback.ok{background:rgba(92,184,92,0.12); color:#a8e6a8; border:1px solid rgba(92,184,92,0.35);}
+  .feedback.bad{background:rgba(217,83,79,0.12); color:#ffb3af; border:1px solid rgba(217,83,79,0.35);}
+
+  .shake{animation:shake 0.4s;}
+  @keyframes shake{
+    10%,90%{transform:translateX(-2px);}
+    20%,80%{transform:translateX(4px);}
+    30%,50%,70%{transform:translateX(-8px);}
+    40%,60%{transform:translateX(8px);}
+  }
+
+  /* ---------- Denied overlay ---------- */
+  .denied-overlay{
+    position:fixed; inset:0; z-index:50; background:rgba(6,4,4,0.88);
+    display:none; align-items:center; justify-content:center; text-align:center;
+    padding:24px;
+  }
+  .denied-overlay.show{display:flex; animation:fade-in 0.25s ease;}
+  .denied-card{max-width:420px; display:flex; flex-direction:column; gap:14px; align-items:center;}
+  .denied-icon{font-size:52px; animation:shake 0.5s;}
+  .denied-title{
+    color:var(--danger); font-size:clamp(20px,4vw,26px); font-weight:800; letter-spacing:1px; text-transform:uppercase;
+  }
+  .denied-text{color:#f2b8b5; font-size:13.5px; line-height:1.5;}
+
+  /* ---------- Victory ---------- */
+  .victory{align-items:center; text-align:center; justify-content:center;}
+  .launch-stage{
+    position:relative; height:clamp(140px, 22vh, 200px); width:100%;
+    display:flex; align-items:flex-end; justify-content:center; overflow:hidden;
+  }
+  .rocket{
+    font-size:clamp(46px, 8vw, 72px);
+    filter:drop-shadow(0 0 14px rgba(102,252,241,0.6));
+    animation:launch 2.2s cubic-bezier(.5,0,.3,1) forwards; animation-delay:0.3s;
+  }
+  @keyframes launch{
+    0%{transform:translateY(0) scale(1);}
+    15%{transform:translateY(-6px) scale(1.03);}
+    100%{transform:translateY(-260px) scale(0.6); opacity:0;}
+  }
+  .exhaust{
+    position:absolute; bottom:0; width:12px; height:12px; border-radius:50%;
+    background:radial-gradient(circle, var(--cyan) 0%, transparent 70%);
+    opacity:0; animation:puff 2.2s ease-in forwards; animation-delay:0.3s;
+  }
+  @keyframes puff{
+    0%{opacity:0; transform:translateY(0) scale(0.5);}
+    10%{opacity:0.85;}
+    60%{opacity:0.3; transform:translateY(40px) scale(3);}
+    100%{opacity:0; transform:translateY(70px) scale(4.2);}
+  }
+  .spark{
+    position:absolute; bottom:6px; width:5px; height:5px; border-radius:50%; background:var(--cyan);
+    opacity:0; animation:spark-fly 1.6s ease-out forwards;
+  }
+  @keyframes spark-fly{
+    0%{opacity:0; transform:translate(0,0) scale(1);}
+    15%{opacity:1;}
+    100%{opacity:0; transform:translate(var(--dx), var(--dy)) scale(0.3);}
+  }
+
+  @media (max-width:600px){
+    .titlebar .label{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+<div class="bg-scan"></div>
+
+<div class="app">
+  <div class="console">
+    <div class="titlebar">
+      <span class="label">HACKSPACE // PAINEL DE LANÇAMENTO</span>
+      <span class="status"><span class="pulse"></span> MONITORANDO</span>
+    </div>
+
+    <div class="stage-track" id="stageTrack">
+      <div class="stage-seg" data-seg="0"></div>
+      <div class="stage-seg" data-seg="1"></div>
+      <div class="stage-seg" data-seg="2"></div>
+    </div>
+
+    <div class="stage-content">
+
+      <!-- SCREEN 0: INTRO -->
+      <section class="screen active" id="screen-intro">
+        <span class="eyebrow">Sesiverso · Painel de Controle</span>
+        <h1 class="hero-title">EscapeVerse:<br><span class="accent">Missão Foguete</span></h1>
+        <p class="lede">Atenção! O sistema do foguete detectou uma tentativa de invasão por vírus. Ajude a equipe a identificar as ameaças de segurança para liberar o lançamento!</p>
+        <div class="row">
+          <button class="btn primary" id="btnStart">Iniciar Verificação de Segurança</button>
+        </div>
+      </section>
+
+      <!-- SCREEN 1: FASE 1 - DETECTA-GOLPE -->
+      <section class="screen" id="screen-p1">
+        <span class="eyebrow">Fase 1 de 3 · O Detecta-Golpe</span>
+        <h2 class="stage-title">Um e-mail suspeito chegou ao sistema com 3 links. Qual é o ÚNICO link seguro para atualizar o foguete?</h2>
+        <div class="options" id="p1-options">
+          <button class="option" data-correct="false"><span class="tag">A</span><span class="opt-text">http://combustivel-gratis-clique-aqui.com</span></button>
+          <button class="option" data-correct="true"><span class="tag">B</span><span class="opt-text">https://sistema-oficial-sesi.gov.br/login</span></button>
+          <button class="option" data-correct="false"><span class="tag">C</span><span class="opt-text">http://atualizacao-urgente.exe</span></button>
+        </div>
+        <div class="feedback" id="p1-feedback"></div>
+        <div class="hint-box" id="p1-hint">💡 Links seguros costumam começar com "https", ter o endereço oficial da instituição e nunca prometem coisas grátis demais para ser verdade.</div>
+        <div class="row">
+          <button class="btn ghost" id="p1-hintBtn">Pedir Dica</button>
+        </div>
+      </section>
+
+      <!-- SCREEN 2: FASE 2 - COFRE DE SENHAS -->
+      <section class="screen" id="screen-p2">
+        <span class="eyebrow">Fase 2 de 3 · O Cofre de Senhas</span>
+        <h2 class="stage-title">O computador do foguete exige uma senha forte. Qual destas é a mais segura contra hackers?</h2>
+        <div class="options" id="p2-options">
+          <button class="option" data-correct="false"><span class="tag">A</span><span class="opt-text">12345678</span></button>
+          <button class="option" data-correct="false"><span class="tag">B</span><span class="opt-text">foguete2026</span></button>
+          <button class="option" data-correct="true"><span class="tag">C</span><span class="opt-text">Foguete#Seguro2026!</span></button>
+        </div>
+        <div class="feedback" id="p2-feedback"></div>
+        <div class="hint-box" id="p2-hint">💡 Uma senha forte mistura letras maiúsculas, minúsculas, números e símbolos — e não usa sequências óbvias como "12345678".</div>
+        <div class="row">
+          <button class="btn ghost" id="p2-hintBtn">Pedir Dica</button>
+        </div>
+      </section>
+
+      <!-- SCREEN 3: FASE 3 - DECISÃO SEGURA -->
+      <section class="screen" id="screen-p3">
+        <span class="eyebrow">Fase 3 de 3 · A Decisão Segura</span>
+        <h2 class="stage-title">Uma janela pop-up apareceu dizendo: "SISTEMA INFECTADO! Ligue para o número X e pague R$ 500 para salvar seu computador." O que você faz?</h2>
+        <div class="options" id="p3-options">
+          <button class="option" data-correct="false"><span class="tag">A</span><span class="opt-text">Pagar o valor imediatamente</span></button>
+          <button class="option" data-correct="true"><span class="tag">B</span><span class="opt-text">Fechar a janela e rodar o antivírus do sistema</span></button>
+        </div>
+        <div class="feedback" id="p3-feedback"></div>
+        <div class="hint-box" id="p3-hint">💡 Empresas de verdade nunca pedem pagamento urgente por pop-up ou ligação para "salvar" seu computador. Isso é um golpe.</div>
+        <div class="row">
+          <button class="btn ghost" id="p3-hintBtn">Pedir Dica</button>
+        </div>
+      </section>
+
+      <!-- SCREEN 4: VITÓRIA -->
+      <section class="screen victory" id="screen-win">
+        <div class="launch-stage" id="launchStage">
+          <div class="exhaust"></div>
+          <div class="rocket" id="rocketEmoji">🚀</div>
+        </div>
+        <span class="eyebrow" style="justify-content:center;">Missão cumprida</span>
+        <h1 class="hero-title">SISTEMA DESINFECTADO!<br><span class="accent">Lançamento autorizado.</span></h1>
+        <p class="lede" style="max-width:56ch; margin:0 auto;">As três ameaças foram identificadas e neutralizadas. O foguete está pronto para decolar rumo ao espaço!</p>
+        <div class="row" style="justify-content:center; margin-top:10px;">
+          <button class="btn primary" id="btnRestart">Reiniciar para o Próximo Jogador</button>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- Denied / vírus detectado overlay -->
+<div class="denied-overlay" id="deniedOverlay">
+  <div class="denied-card">
+    <div class="denied-icon">⚠️🦠</div>
+    <div class="denied-title">Acesso Negado — Vírus Detectado!</div>
+    <div class="denied-text" id="deniedText">Essa opção não é segura. A ameaça foi bloqueada a tempo. Tente novamente com atenção.</div>
+    <button class="btn primary" id="deniedRetry">Tentar Novamente</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var screens = ["screen-intro","screen-p1","screen-p2","screen-p3","screen-win"];
+  var segs = document.querySelectorAll(".stage-seg");
+  var deniedOverlay = document.getElementById("deniedOverlay");
+  var deniedText = document.getElementById("deniedText");
+  var pendingRetryPhase = null;
+
+  function showScreen(id){
+    screens.forEach(function(s){
+      document.getElementById(s).classList.toggle("active", s === id);
+    });
+    updateTrack(id);
+  }
+
+  function updateTrack(id){
+    var map = {"screen-intro":-1, "screen-p1":0, "screen-p2":1, "screen-p3":2, "screen-win":3};
+    var idx = map[id];
+    segs.forEach(function(seg, i){
+      seg.classList.remove("current","done");
+      if(idx === -1) return;
+      if(i < idx) seg.classList.add("done");
+      else if(i === idx) seg.classList.add("current");
+    });
+  }
+
+  function shakeEl(el){
+    el.classList.remove("shake");
+    void el.offsetWidth;
+    el.classList.add("shake");
+  }
+
+  function setFeedback(el, ok, textOk, textBad){
+    el.classList.remove("ok","bad");
+    el.classList.add("show", ok ? "ok" : "bad");
+    el.textContent = ok ? textOk : textBad;
+  }
+
+  function showDenied(message){
+    deniedText.textContent = message;
+    deniedOverlay.classList.add("show");
+  }
+
+  document.getElementById("deniedRetry").addEventListener("click", function(){
+    deniedOverlay.classList.remove("show");
+  });
+
+  /* ---------- Intro ---------- */
+  document.getElementById("btnStart").addEventListener("click", function(){
+    showScreen("screen-p1");
+  });
+
+  /* ---------- Fase genérica de opções ---------- */
+  var phaseResets = [];
+
+  function wirePhase(config){
+    var options = document.querySelectorAll("#" + config.optionsId + " .option");
+    var feedback = document.getElementById(config.feedbackId);
+    var solved = false;
+
+    options.forEach(function(opt){
+      opt.addEventListener("click", function(){
+        if(solved) return;
+        var correct = opt.getAttribute("data-correct") === "true";
+        if(correct){
+          solved = true;
+          opt.classList.add("correct");
+          options.forEach(function(o){ o.setAttribute("disabled",""); });
+          setFeedback(feedback, true, config.okMsg, "");
+          setTimeout(function(){
+            showScreen(config.nextScreen);
+          }, 900);
+        } else {
+          opt.classList.add("wrong");
+          shakeEl(opt);
+          setFeedback(feedback, false, "", config.badMsg);
+          setTimeout(function(){
+            opt.classList.remove("wrong");
+            showDenied(config.deniedMsg);
+          }, 400);
+        }
+      });
+    });
+
+    document.getElementById(config.hintBtnId).addEventListener("click", function(){
+      document.getElementById(config.hintId).classList.toggle("show");
+    });
+
+    // Guarda uma função que devolve essa fase ao estado inicial (inclusive o "solved" da closure)
+    phaseResets.push(function(){
+      solved = false;
+      options.forEach(function(o){
+        o.classList.remove("correct","wrong");
+        o.removeAttribute("disabled");
+      });
+      feedback.classList.remove("show","ok","bad");
+      document.getElementById(config.hintId).classList.remove("show");
+    });
+  }
+
+  wirePhase({
+    optionsId:"p1-options", feedbackId:"p1-feedback",
+    hintBtnId:"p1-hintBtn", hintId:"p1-hint",
+    okMsg:"✔ Link oficial confirmado! Ameaça neutralizada.",
+    badMsg:"✘ Alerta: link suspeito!",
+    deniedMsg:"Esse link é uma armadilha! Nunca clique em endereços estranhos ou promessas boas demais. Olhe com atenção e escolha o link oficial.",
+    nextScreen:"screen-p2"
+  });
+
+  wirePhase({
+    optionsId:"p2-options", feedbackId:"p2-feedback",
+    hintBtnId:"p2-hintBtn", hintId:"p2-hint",
+    okMsg:"✔ Senha forte aprovada! Cofre protegido.",
+    badMsg:"✘ Alerta: senha fraca!",
+    deniedMsg:"Essa senha é fácil demais de descobrir! Senhas fortes misturam letras, números e símbolos. Tente de novo.",
+    nextScreen:"screen-p3"
+  });
+
+  wirePhase({
+    optionsId:"p3-options", feedbackId:"p3-feedback",
+    hintBtnId:"p3-hintBtn", hintId:"p3-hint",
+    okMsg:"✔ Decisão correta! Golpe evitado.",
+    badMsg:"✘ Alerta: isso é um golpe!",
+    deniedMsg:"Cuidado! Pagar por uma mensagem de pop-up é cair no golpe. Feche a janela e use o antivírus oficial. Tente de novo.",
+    nextScreen:"screen-win"
+  });
+
+  /* ---------- Extra sparks on victory ---------- */
+  function spawnSparks(){
+    var stage = document.getElementById("launchStage");
+    for(var i=0; i<10; i++){
+      var s = document.createElement("div");
+      s.className = "spark";
+      var angle = (Math.random()*Math.PI) + Math.PI; // upward spread
+      var dist = 40 + Math.random()*70;
+      s.style.setProperty("--dx", (Math.cos(angle)*dist) + "px");
+      s.style.setProperty("--dy", (Math.sin(angle)*dist) + "px");
+      s.style.left = "calc(50% + " + (Math.random()*20-10) + "px)";
+      s.style.animationDelay = (0.3 + Math.random()*0.4) + "s";
+      stage.appendChild(s);
+    }
+  }
+
+  /* ---------- Reset all phases ---------- */
+  document.getElementById("btnRestart").addEventListener("click", function(){
+    phaseResets.forEach(function(reset){ reset(); });
+    document.querySelectorAll("#launchStage .spark").forEach(function(s){ s.remove(); });
+    showScreen("screen-intro");
+  });
+
+  // observa quando a tela de vitória entra em cena para lançar as faíscas
+  var winObserver = new MutationObserver(function(){
+    if(document.getElementById("screen-win").classList.contains("active")){
+      document.querySelectorAll("#launchStage .spark").forEach(function(s){ s.remove(); });
+      spawnSparks();
+    }
+  });
+  winObserver.observe(document.getElementById("screen-win"), {attributes:true, attributeFilter:["class"]});
+
+  showScreen("screen-intro");
+})();
+</script>
+</body>
+</html>
